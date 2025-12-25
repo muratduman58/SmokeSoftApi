@@ -200,4 +200,92 @@ public class ConversationService : IConversationService
 
         return Result.Success();
     }
+
+    // WebSocket Session Management
+    public async Task<ConversationSession> CreateSessionAsync(Guid conversationId, string sessionId, string webSocketId)
+    {
+        var session = new ConversationSession
+        {
+            Id = Guid.NewGuid(),
+            ConversationId = conversationId,
+            WebSocketId = webSocketId,
+            StartedAt = DateTime.UtcNow,
+            AudioChunksSent = 0,
+            AudioChunksReceived = 0,
+            EstimatedCreditsUsed = 0,
+            EndReason = string.Empty
+        };
+
+        await _context.ConversationSessions.AddAsync(session);
+        await _context.SaveChangesAsync();
+
+        return session;
+    }
+
+    public async Task UpdateSessionMetricsAsync(string sessionId, int bytesProcessed, bool sent)
+    {
+        var session = await _context.ConversationSessions
+            .FirstOrDefaultAsync(s => s.WebSocketId == sessionId);
+
+        if (session != null)
+        {
+            if (sent)
+                session.AudioChunksSent++;
+            else
+                session.AudioChunksReceived++;
+
+            // Estimate credits: ~50 credits per 1KB
+            session.EstimatedCreditsUsed += (bytesProcessed / 1024) * 50;
+
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task CloseConversationAsync(Guid conversationId, string sessionId, string endReason)
+    {
+        var conversation = await _context.Conversations
+            .Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.Id == conversationId);
+
+        if (conversation == null) return;
+
+        var session = await _context.ConversationSessions
+            .FirstOrDefaultAsync(s => s.WebSocketId == sessionId);
+
+        if (session != null)
+        {
+            session.EndedAt = DateTime.UtcNow;
+            session.EndReason = endReason;
+
+            // Calculate minutes
+            var duration = session.EndedAt.Value - session.StartedAt;
+            var minutes = (int)Math.Ceiling(duration.TotalMinutes);
+
+            conversation.CallEndedAt = DateTime.UtcNow;
+            conversation.MinutesUsed = minutes;
+
+            // Update user minutes
+            conversation.User.UsedAIMinutes += minutes;
+
+            // Update system config
+            var config = await _context.SystemSafetyConfigs
+                .FirstOrDefaultAsync(c => c.IsActive);
+
+            if (config != null)
+            {
+                config.CreditsUsed += session.EstimatedCreditsUsed;
+                config.MinutesUsed += minutes;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<Conversation?> GetByIdAsync(Guid conversationId, Guid userId)
+    {
+        return await _context.Conversations
+            .Include(c => c.AIIdentity)
+            .Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.Id == conversationId && c.UserId == userId);
+    }
 }

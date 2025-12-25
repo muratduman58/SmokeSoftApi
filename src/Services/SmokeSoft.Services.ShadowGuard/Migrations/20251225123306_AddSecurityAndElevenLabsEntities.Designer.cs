@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmokeSoft.Services.ShadowGuard.Data;
@@ -11,9 +12,11 @@ using SmokeSoft.Services.ShadowGuard.Data;
 namespace SmokeSoft.Services.ShadowGuard.Migrations
 {
     [DbContext(typeof(ShadowGuardDbContext))]
-    partial class ShadowGuardDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251225123306_AddSecurityAndElevenLabsEntities")]
+    partial class AddSecurityAndElevenLabsEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -888,9 +891,6 @@ namespace SmokeSoft.Services.ShadowGuard.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsPreset")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("LastUsedAt")

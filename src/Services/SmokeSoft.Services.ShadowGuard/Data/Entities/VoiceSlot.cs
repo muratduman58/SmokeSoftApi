@@ -6,6 +6,7 @@ public class VoiceSlot : BaseEntity
 {
     public Guid AIIdentityId { get; set; }
     public string ElevenLabsVoiceId { get; set; } = string.Empty;
+    public bool IsPreset { get; set; } = false; // Hazır ses mi, yoksa klonlanmış ses mi?
     public DateTime LastUsedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
     public DateTime? DeletedFromElevenLabsAt { get; set; }

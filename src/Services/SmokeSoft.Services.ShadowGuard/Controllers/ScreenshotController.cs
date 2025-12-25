@@ -19,6 +19,7 @@ public class ScreenshotController : BaseController
     [HttpPost("upload")]
     [AllowAnonymous]
     [RequestSizeLimit(10 * 1024 * 1024)] // 10MB limit
+    [ApiExplorerSettings(IgnoreApi = true)] // Hide from Swagger due to file upload complexity
     public async Task<IActionResult> UploadScreenshot(
         [FromForm] UploadScreenshotRequest request,
         [FromForm] IFormFile file,

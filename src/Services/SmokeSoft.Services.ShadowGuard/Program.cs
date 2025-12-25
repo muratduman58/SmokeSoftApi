@@ -8,6 +8,7 @@ using SmokeSoft.Infrastructure.Caching;
 using SmokeSoft.Infrastructure.Services;
 using SmokeSoft.Services.ShadowGuard.Configuration;
 using SmokeSoft.Services.ShadowGuard.Data;
+using SmokeSoft.Services.ShadowGuard.Filters;
 using SmokeSoft.Services.ShadowGuard.Services;
 using SmokeSoft.Services.ShadowGuard.WebSockets;
 
@@ -25,9 +26,8 @@ builder.Host.UseSerilog();
 
 // Add services to the container
 builder.Services.AddControllers();
+// Add Swagger
 builder.Services.AddEndpointsApiExplorer();
-
-// Configure Swagger
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -143,10 +143,14 @@ builder.Services.AddScoped<ISystemConfigService, SystemConfigService>();
 builder.Services.AddScoped<IQuotaEnforcementService, QuotaEnforcementService>();
 builder.Services.AddScoped<IVoiceSlotManager, VoiceSlotManager>();
 
+// Register ElevenLabs services
+builder.Services.AddHttpClient<IElevenLabsVoiceService, ElevenLabsVoiceService>();
+
 // Register WebSocket services
 builder.Services.AddSingleton<WebSocketConnectionManager>();
 builder.Services.AddScoped<WebSocketHandler>();
 builder.Services.AddScoped<VoiceWebSocketHandler>();
+builder.Services.AddScoped<ElevenLabsConversationHandler>();
 
 var app = builder.Build();
 
@@ -172,10 +176,36 @@ app.UseWebSockets(new WebSocketOptions
     KeepAliveInterval = TimeSpan.FromMinutes(2)
 });
 
-// WebSocket endpoint for voice streaming
+// WebSocket endpoints
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path == "/ws/voice")
+    var path = context.Request.Path;
+    
+    // ElevenLabs conversation endpoint: /ws/conversation/{conversationId}
+    if (path.StartsWithSegments("/ws/conversation"))
+    {
+        var segments = path.Value?.Split('/') ?? Array.Empty<string>();
+        if (segments.Length >= 4 && context.WebSockets.IsWebSocketRequest)
+        {
+            var conversationId = segments[3];
+            var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+            
+            var handler = context.RequestServices
+                .GetRequiredService<ElevenLabsConversationHandler>();
+            
+            await handler.HandleConversationAsync(
+                context,
+                webSocket,
+                conversationId
+            );
+        }
+        else
+        {
+            context.Response.StatusCode = 400;
+        }
+    }
+    // Legacy voice streaming endpoint: /ws/voice
+    else if (path == "/ws/voice")
     {
         if (context.WebSockets.IsWebSocketRequest)
         {

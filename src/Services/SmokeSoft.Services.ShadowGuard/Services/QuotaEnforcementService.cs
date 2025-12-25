@@ -12,6 +12,7 @@ public interface IQuotaEnforcementService
     Task<Result> CheckDailyUserLimitAsync(Guid userId);
     Task<Result> CheckDailySystemLimitAsync();
     Task<bool> IsSystemHealthyAsync();
+    Task<Result> CheckDuringConversationAsync(Guid userId, double elapsedMinutes);
 }
 
 public class QuotaEnforcementService : IQuotaEnforcementService
@@ -138,5 +139,70 @@ public class QuotaEnforcementService : IQuotaEnforcementService
         }
         
         return true;
+    }
+
+    // Real-time conversation quota check
+    public async Task<Result> CheckDuringConversationAsync(Guid userId, double elapsedMinutes)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+        {
+            return Result.Failure("User not found", "USER_NOT_FOUND");
+        }
+
+        var config = await _configService.GetConfigAsync();
+
+        // Check 1: Hard limit per conversation
+        if (elapsedMinutes >= config.AbsoluteMaxConversationMinutes)
+        {
+            return Result.Failure(
+                $"Maximum conversation time ({config.AbsoluteMaxConversationMinutes} minutes) exceeded",
+                "CONVERSATION_TIME_LIMIT");
+        }
+
+        // Check 2: User daily limit
+        var todayUsage = await GetUserDailyUsageAsync(userId);
+        if (todayUsage + elapsedMinutes >= config.AbsoluteMaxDailyMinutesPerUser)
+        {
+            return Result.Failure(
+                "Daily usage limit reached",
+                "DAILY_USER_LIMIT");
+        }
+
+        // Check 3: System daily limit
+        var systemDailyUsage = await GetSystemDailyCreditsAsync();
+        if (systemDailyUsage >= config.AbsoluteMaxDailyCredits)
+        {
+            return Result.Failure(
+                "System daily limit exceeded",
+                "DAILY_SYSTEM_LIMIT");
+        }
+
+        // Check 4: Circuit breaker
+        var usagePercentage = (decimal)config.CreditsUsed / config.MonthlyCredits;
+        if (usagePercentage >= config.CreditDangerThreshold)
+        {
+            return Result.Failure(
+                "System credit limit exceeded",
+                "CIRCUIT_BREAKER");
+        }
+
+        return Result.Success();
+    }
+
+    private async Task<int> GetUserDailyUsageAsync(Guid userId)
+    {
+        var today = DateTime.UtcNow.Date;
+        return await _context.Conversations
+            .Where(c => c.UserId == userId && c.IsAICall && c.CallStartedAt >= today)
+            .SumAsync(c => c.MinutesUsed);
+    }
+
+    private async Task<int> GetSystemDailyCreditsAsync()
+    {
+        var today = DateTime.UtcNow.Date;
+        return await _context.CreditUsageLogs
+            .Where(l => l.UsedAt >= today)
+            .SumAsync(l => l.CreditsUsed);
     }
 }

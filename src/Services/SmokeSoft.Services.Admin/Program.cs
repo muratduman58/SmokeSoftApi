@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using SmokeSoft.Services.Admin.Data;
 using SmokeSoft.Services.ShadowGuard.Data;
 using System.Text;
 
@@ -24,7 +25,11 @@ builder.Services.AddSwaggerGen();
 // Add Memory Cache
 builder.Services.AddMemoryCache();
 
-// Configure ShadowGuard Database (shared access)
+// Configure Admin Database (own database)
+builder.Services.AddDbContext<AdminDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("AdminDb")));
+
+// Configure ShadowGuard Database (read-only access for management)
 builder.Services.AddDbContext<ShadowGuardDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("ShadowGuardDb")));
 
