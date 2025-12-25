@@ -11,6 +11,7 @@ public class ScreenCustomization : BaseEntity
     public string OriginalFileName { get; set; } = string.Empty;
     public long FileSizeBytes { get; set; }
     public string ContentType { get; set; } = string.Empty;
+    public string FileHash { get; set; } = string.Empty; // SHA256 hash for duplicate detection
     
     // Device info at upload time
     public string DeviceName { get; set; } = string.Empty;

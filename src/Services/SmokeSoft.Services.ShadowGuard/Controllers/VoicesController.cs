@@ -5,6 +5,9 @@ using SmokeSoft.Shared.DTOs.ShadowGuard;
 
 namespace SmokeSoft.Services.ShadowGuard.Controllers;
 
+/// <summary>
+/// ElevenLabs hazır ses kütüphanesi endpoint'leri
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class VoicesController : ControllerBase

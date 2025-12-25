@@ -37,6 +37,17 @@ builder.Services.AddSwaggerGen(c =>
         Description = "ShadowGuard Service API for AI Identity Management"
     });
 
+    // Add XML comments to Swagger
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
+
+    // Add file upload support
+    c.OperationFilter<FileUploadOperationFilter>();
+
     // Add JWT authentication to Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {

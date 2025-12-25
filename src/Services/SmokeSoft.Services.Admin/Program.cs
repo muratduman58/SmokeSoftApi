@@ -58,6 +58,9 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// Register Admin Services
+builder.Services.AddScoped<SmokeSoft.Services.Admin.Services.IAdminScreenshotService, SmokeSoft.Services.Admin.Services.AdminScreenshotService>();
+
 // Configure CORS
 builder.Services.AddCors(options =>
 {

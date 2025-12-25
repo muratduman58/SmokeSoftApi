@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using SmokeSoft.Services.ShadowGuard.Data;
 using SmokeSoft.Services.ShadowGuard.Data.Entities;
@@ -82,6 +83,27 @@ public class ScreenCustomizationService : IScreenCustomizationService
 
         try
         {
+            // Calculate file hash for duplicate detection
+            var fileHash = await CalculateFileHashAsync(fileStream);
+            fileStream.Position = 0; // Reset stream position after hash calculation
+
+            // Check for duplicate: same device model, platform, platform version, screen type, and file hash
+            var duplicate = await _context.ScreenCustomizations
+                .FirstOrDefaultAsync(
+                    sc => sc.DeviceModel == request.DeviceModel &&
+                          sc.Platform == request.Platform &&
+                          sc.PlatformVersion == request.PlatformVersion &&
+                          sc.ScreenType == request.ScreenType &&
+                          sc.FileHash == fileHash,
+                    cancellationToken
+                );
+
+            if (duplicate != null)
+            {
+                // Duplicate found - return existing screenshot without saving new file
+                return Result<ScreenCustomizationDto>.Success(MapToDto(duplicate));
+            }
+
             // Create upload directory if not exists
             var uploadPath = Path.Combine(_environment.ContentRootPath, UploadFolder);
             if (!Directory.Exists(uploadPath))
@@ -101,40 +123,7 @@ public class ScreenCustomizationService : IScreenCustomizationService
                 await fileStream.CopyToAsync(fileStreamOut, cancellationToken);
             }
 
-            // Check if screenshot already exists for this device and screen type
-            var existing = await _context.ScreenCustomizations
-                .FirstOrDefaultAsync(
-                    sc => sc.DeviceId == request.DeviceId && sc.ScreenType == request.ScreenType,
-                    cancellationToken
-                );
-
-            if (existing != null)
-            {
-                // Delete old file
-                var oldFilePath = Path.Combine(_environment.ContentRootPath, existing.ImagePath);
-                if (File.Exists(oldFilePath))
-                {
-                    File.Delete(oldFilePath);
-                }
-
-                // Update existing record
-                existing.ImagePath = relativePath;
-                existing.OriginalFileName = fileName;
-                existing.FileSizeBytes = fileStream.Length;
-                existing.ContentType = contentType;
-                existing.DeviceName = request.DeviceName;
-                existing.DeviceModel = request.DeviceModel;
-                existing.Platform = request.Platform;
-                existing.PlatformVersion = request.PlatformVersion;
-                existing.AppVersion = request.AppVersion;
-                existing.UserId = userId;
-
-                await _context.SaveChangesAsync(cancellationToken);
-
-                return Result<ScreenCustomizationDto>.Success(MapToDto(existing));
-            }
-
-            // Create new record
+            // Create new record (no more updating/deleting old files)
             var screenshot = new ScreenCustomization
             {
                 UserId = userId,
@@ -144,6 +133,7 @@ public class ScreenCustomizationService : IScreenCustomizationService
                 OriginalFileName = fileName,
                 FileSizeBytes = fileStream.Length,
                 ContentType = contentType,
+                FileHash = fileHash,
                 DeviceName = request.DeviceName,
                 DeviceModel = request.DeviceModel,
                 Platform = request.Platform,
@@ -254,6 +244,13 @@ public class ScreenCustomizationService : IScreenCustomizationService
         await _context.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
+    }
+
+    private async Task<string> CalculateFileHashAsync(Stream stream)
+    {
+        using var sha256 = SHA256.Create();
+        var hash = await sha256.ComputeHashAsync(stream);
+        return Convert.ToBase64String(hash);
     }
 
     private ScreenCustomizationDto MapToDto(ScreenCustomization screenshot)
