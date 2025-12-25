@@ -1,0 +1,202 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SmokeSoft.Services.ShadowGuard.Controllers;
+using SmokeSoft.Services.ShadowGuard.Data;
+using SmokeSoft.Services.ShadowGuard.Data.Entities;
+using SmokeSoft.Services.ShadowGuard.Services;
+
+namespace SmokeSoft.Services.ShadowGuard.Controllers.Admin;
+
+[ApiController]
+[Route("api/admin/system-config")]
+[Authorize(Roles = "Admin")]
+public class SystemConfigController : BaseController
+{
+    private readonly ShadowGuardDbContext _context;
+    private readonly ISystemConfigService _configService;
+    
+    public SystemConfigController(
+        ShadowGuardDbContext context,
+        ISystemConfigService configService)
+    {
+        _context = context;
+        _configService = configService;
+    }
+    
+    // GET: Get current configuration
+    [HttpGet]
+    public async Task<IActionResult> GetConfig()
+    {
+        var config = await _configService.GetConfigAsync();
+        return Ok(config);
+    }
+    
+    // PUT: Update ElevenLabs plan
+    [HttpPut("elevenlabs-plan")]
+    public async Task<IActionResult> UpdateElevenLabsPlan([FromBody] UpdateElevenLabsPlanRequest request)
+    {
+        var config = await _context.SystemSafetyConfigs.FirstAsync(c => c.IsActive);
+        
+        config.ElevenLabsPlanTier = request.PlanTier;
+        config.MonthlyPrice = request.MonthlyPrice;
+        config.MonthlyCredits = request.MonthlyCredits;
+        config.EstimatedMinutes = request.EstimatedMinutes;
+        config.PeriodStartDate = DateTime.UtcNow;
+        config.PeriodEndDate = DateTime.UtcNow.AddMonths(1);
+        config.CreditsUsed = 0; // Reset for new period
+        config.MinutesUsed = 0;
+        
+        await _context.SaveChangesAsync();
+        await _configService.InvalidateCacheAsync();
+        
+        return Ok(new { message = "ElevenLabs plan updated successfully", config });
+    }
+    
+    // PUT: Update hard limits
+    [HttpPut("hard-limits")]
+    public async Task<IActionResult> UpdateHardLimits([FromBody] UpdateHardLimitsRequest request)
+    {
+        var config = await _context.SystemSafetyConfigs.FirstAsync(c => c.IsActive);
+        
+        config.AbsoluteMaxConcurrentConnections = request.MaxConcurrentConnections;
+        config.AbsoluteMaxVoiceSlots = request.MaxVoiceSlots;
+        config.AbsoluteMaxConversationMinutes = request.MaxConversationMinutes;
+        config.AbsoluteMaxDailyMinutesPerUser = request.MaxDailyMinutesPerUser;
+        config.AbsoluteMaxDailyCredits = request.MaxDailyCredits;
+        
+        await _context.SaveChangesAsync();
+        await _configService.InvalidateCacheAsync();
+        
+        return Ok(new { message = "Hard limits updated successfully" });
+    }
+    
+    // PUT: Update alert settings
+    [HttpPut("alerts")]
+    public async Task<IActionResult> UpdateAlertSettings([FromBody] UpdateAlertSettingsRequest request)
+    {
+        var config = await _context.SystemSafetyConfigs.FirstAsync(c => c.IsActive);
+        
+        config.AlertEmail = request.Email;
+        config.AlertPhone = request.Phone;
+        config.SlackWebhookUrl = request.SlackWebhook;
+        config.CreditWarningThreshold = request.WarningThreshold;
+        config.CreditDangerThreshold = request.DangerThreshold;
+        
+        await _context.SaveChangesAsync();
+        await _configService.InvalidateCacheAsync();
+        
+        return Ok(new { message = "Alert settings updated successfully" });
+    }
+    
+    // PUT: Update feature toggles
+    [HttpPut("features")]
+    public async Task<IActionResult> UpdateFeatures([FromBody] UpdateFeaturesRequest request)
+    {
+        var config = await _context.SystemSafetyConfigs.FirstAsync(c => c.IsActive);
+        
+        config.EnableHardLimits = request.EnableHardLimits;
+        config.EnableAutoStop = request.EnableAutoStop;
+        config.EnableDailyLimits = request.EnableDailyLimits;
+        
+        await _context.SaveChangesAsync();
+        await _configService.InvalidateCacheAsync();
+        
+        return Ok(new { message = "Features updated successfully" });
+    }
+    
+    // GET: Real-time dashboard
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> GetDashboard()
+    {
+        var config = await _configService.GetConfigAsync();
+        var now = DateTime.UtcNow;
+        
+        // Today's usage
+        var todayCredits = await _context.CreditUsageLogs
+            .Where(l => l.UsedAt >= now.Date)
+            .SumAsync(l => l.CreditsUsed);
+        
+        var todayMinutes = await _context.Conversations
+            .Where(c => c.IsAICall && c.CallStartedAt >= now.Date)
+            .SumAsync(c => c.MinutesUsed);
+        
+        // Active resources
+        var activeConnections = await _context.ConversationSessions
+            .CountAsync(s => s.EndedAt == null);
+        
+        var activeSlots = await _context.VoiceSlots
+            .CountAsync(s => s.IsActive);
+        
+        // Status
+        var creditPercentage = (config.CreditsUsed * 100.0m) / (config.MonthlyCredits > 0 ? config.MonthlyCredits : 1);
+        var status = creditPercentage >= config.CreditDangerThreshold * 100 ? "DANGER" 
+                   : creditPercentage >= config.CreditWarningThreshold * 100 ? "WARNING" 
+                   : "OK";
+        
+        return Ok(new
+        {
+            status,
+            plan = new
+            {
+                tier = config.ElevenLabsPlanTier,
+                monthlyPrice = config.MonthlyPrice,
+                periodEnd = config.PeriodEndDate
+            },
+            credits = new
+            {
+                total = config.MonthlyCredits,
+                used = config.CreditsUsed,
+                remaining = config.RemainingCredits,
+                percentage = creditPercentage,
+                todayUsage = todayCredits
+            },
+            minutes = new
+            {
+                estimated = config.EstimatedMinutes,
+                used = config.MinutesUsed,
+                remaining = config.RemainingMinutes,
+                todayUsage = todayMinutes
+            },
+            active = new
+            {
+                connections = activeConnections,
+                slots = activeSlots,
+                maxConnections = config.AbsoluteMaxConcurrentConnections,
+                maxSlots = config.AbsoluteMaxVoiceSlots
+            },
+            limits = new
+            {
+                hardLimitsEnabled = config.EnableHardLimits,
+                autoStopEnabled = config.EnableAutoStop,
+                dailyLimitsEnabled = config.EnableDailyLimits
+            }
+        });
+    }
+}
+
+// Request DTOs
+public record UpdateElevenLabsPlanRequest(
+    string PlanTier,
+    decimal MonthlyPrice,
+    int MonthlyCredits,
+    int EstimatedMinutes);
+
+public record UpdateHardLimitsRequest(
+    int MaxConcurrentConnections,
+    int MaxVoiceSlots,
+    int MaxConversationMinutes,
+    int MaxDailyMinutesPerUser,
+    int MaxDailyCredits);
+
+public record UpdateAlertSettingsRequest(
+    string Email,
+    string Phone,
+    string SlackWebhook,
+    decimal WarningThreshold,
+    decimal DangerThreshold);
+
+public record UpdateFeaturesRequest(
+    bool EnableHardLimits,
+    bool EnableAutoStop,
+    bool EnableDailyLimits);

@@ -1,0 +1,6 @@
+@SmokeSoft.Services.ShadowGuard_HostAddress = http://localhost:5076
+
+GET {{SmokeSoft.Services.ShadowGuard_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
