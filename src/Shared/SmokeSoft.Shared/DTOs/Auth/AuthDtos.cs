@@ -31,13 +31,13 @@ public class AuthResponse
 public class UserDto
 {
     public Guid Id { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
+    public string? Email { get; set; } // Nullable - anonim kullanıcılar için null
+    public string? DisplayName { get; set; } // OAuth'tan veya kullanıcıdan
     public string? PhoneNumber { get; set; }
     public bool IsPro { get; set; }
     public DateTime? ProExpiresAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool IsAnonymous => string.IsNullOrEmpty(Email);
 }
 
 public class UserSubscriptionDto

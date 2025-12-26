@@ -77,11 +77,12 @@ public class OAuthService : IOAuthService
                 isNewUser = true;
                 user = new User
                 {
-                    Email = tokenInfo.Email ?? $"{request.Provider}_{tokenInfo.UserId}@oauth.local",
-                    PasswordHash = string.Empty, // OAuth users don't have password
-                    FirstName = tokenInfo.GivenName ?? tokenInfo.Name ?? "User",
-                    LastName = tokenInfo.FamilyName ?? "",
-                    IsActive = true
+                    Id = Guid.NewGuid(),
+                    Email = tokenInfo.Email,
+                    DisplayName = tokenInfo.Name,
+                    IsActive = true,
+                    TotalAIMinutes = 100,
+                    TotalAISlots = 1
                 };
 
                 _context.Users.Add(user);
@@ -243,9 +244,9 @@ public class OAuthService : IOAuthService
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}")
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
+            new Claim(ClaimTypes.Name, user.DisplayName ?? user.Email ?? user.Id.ToString()),
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
@@ -283,8 +284,7 @@ public class OAuthService : IOAuthService
         {
             Id = user.Id,
             Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
+            DisplayName = user.DisplayName,
             PhoneNumber = user.PhoneNumber,
             CreatedAt = user.CreatedAt
         };

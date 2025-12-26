@@ -37,17 +37,20 @@ public class ShadowGuardDbContext : DbContext
         // Set schema
         modelBuilder.HasDefaultSchema("shadowguard");
 
-        // User configuration
+        // User
         modelBuilder.Entity<User>(entity =>
         {
-            entity.ToTable("users");
+            entity.ToTable("Users");
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.Email).IsUnique();
-            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
-            entity.Property(e => e.PasswordHash).IsRequired();
-            entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Email).HasMaxLength(255);
+            entity.Property(e => e.DisplayName).HasMaxLength(200);
+            entity.Property(e => e.PasswordHash).IsRequired().HasMaxLength(500);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
+            
+            // Conditional unique constraint - only for non-null emails
+            entity.HasIndex(e => e.Email)
+                .IsUnique()
+                .HasFilter("\"Email\" IS NOT NULL");
 
             entity.HasMany(e => e.RefreshTokens)
                 .WithOne(e => e.User)

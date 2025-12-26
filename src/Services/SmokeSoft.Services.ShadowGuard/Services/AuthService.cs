@@ -40,14 +40,15 @@ public class AuthService : IAuthService
         // Create user
         var user = new User
         {
+            Id = Guid.NewGuid(),
             Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            FirstName = request.FirstName,
-            LastName = request.LastName,
+            DisplayName = $"{request.FirstName} {request.LastName}".Trim(),
             PhoneNumber = request.PhoneNumber,
-            IsActive = true
+            IsActive = true,
+            TotalAIMinutes = 100, // Free tier: 100 minutes
+            TotalAISlots = 1 // Free tier: 1 AI slot
         };
-
         _context.Users.Add(user);
 
         // Create user profile
@@ -190,8 +191,8 @@ public class AuthService : IAuthService
             );
         }
 
-        user.FirstName = request.FirstName;
-        user.LastName = request.LastName;
+        // Update user profile
+        user.DisplayName = $"{request.FirstName} {request.LastName}".Trim();
         user.PhoneNumber = request.PhoneNumber;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -232,9 +233,9 @@ public class AuthService : IAuthService
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}")
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
+            new Claim(ClaimTypes.Name, user.DisplayName ?? user.Email ?? user.Id.ToString()),
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
@@ -272,8 +273,7 @@ public class AuthService : IAuthService
         {
             Id = user.Id,
             Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
+            DisplayName = user.DisplayName,
             PhoneNumber = user.PhoneNumber,
             CreatedAt = user.CreatedAt
         };

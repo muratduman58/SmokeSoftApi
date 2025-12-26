@@ -6,6 +6,7 @@ namespace SmokeSoft.Services.ShadowGuard.Services;
 public interface IAuthService
 {
     Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default);
+    Task<Result<AuthResponse>> RegisterAnonymousAsync(RegisterAnonymousRequest request, CancellationToken cancellationToken = default);
     Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
     Task<Result<AuthResponse>> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
     Task<Result> LogoutAsync(Guid userId, CancellationToken cancellationToken = default);
