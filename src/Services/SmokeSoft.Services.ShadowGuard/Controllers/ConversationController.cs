@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmokeSoft.Services.ShadowGuard.Services;
 using SmokeSoft.Shared.Common;
 using SmokeSoft.Shared.DTOs.ShadowGuard;
+using SmokeSoft.Shared.Models;
 
 namespace SmokeSoft.Services.ShadowGuard.Controllers;
 
@@ -45,10 +46,10 @@ public class ConversationController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "FETCH_FAILED", result.ErrorMessage ?? "Konuşmalar getirilemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -73,10 +74,10 @@ public class ConversationController : BaseController
 
         if (!result.IsSuccess)
         {
-            return NotFound(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return NotFoundError(result.ErrorMessage ?? "Konuşma bulunamadı");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -102,10 +103,14 @@ public class ConversationController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "START_FAILED", result.ErrorMessage ?? "Konuşma başlatılamadı");
         }
 
-        return CreatedAtAction(nameof(GetConversationById), new { id = result.Data!.Id }, result.Data);
+        return CreatedAtAction(
+            nameof(GetConversationById), 
+            new { id = result.Data!.Id }, 
+            ApiResponse<ConversationDto>.SuccessResult(result.Data, "Konuşma başarıyla başlatıldı")
+        );
     }
 
     /// <summary>
@@ -131,17 +136,17 @@ public class ConversationController : BaseController
         // Ensure conversation ID matches
         if (request.ConversationId != id)
         {
-            return BadRequest(new { error = "Conversation ID mismatch" });
+            return ValidationError("Konuşma ID uyuşmazlığı", "URL'deki ID ile request body'deki ID eşleşmiyor");
         }
 
         var result = await _conversationService.SendMessageAsync(userId, request, cancellationToken);
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "SEND_FAILED", result.ErrorMessage ?? "Mesaj gönderilemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "Mesaj başarıyla gönderildi");
     }
 
     /// <summary>
@@ -166,9 +171,9 @@ public class ConversationController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "END_FAILED", result.ErrorMessage ?? "Konuşma sonlandırılamadı");
         }
 
-        return Ok(new { message = "Conversation ended successfully" });
+        return Success(new { }, "Konuşma başarıyla sonlandırıldı");
     }
 }

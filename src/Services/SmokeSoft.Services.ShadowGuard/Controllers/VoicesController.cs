@@ -9,8 +9,8 @@ namespace SmokeSoft.Services.ShadowGuard.Controllers;
 /// ElevenLabs hazır ses kütüphanesi endpoint'leri
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
-public class VoicesController : ControllerBase
+[Route("api/shadowguard/[controller]")]
+public class VoicesController : BaseController
 {
     private readonly IElevenLabsVoiceService _elevenLabsService;
     private readonly ILogger<VoicesController> _logger;
@@ -26,25 +26,32 @@ public class VoicesController : ControllerBase
     /// <summary>
     /// ElevenLabs hazır ses kütüphanesini getirir (Oturum gerektirmez)
     /// </summary>
+    /// <param name="language">Dil kodu (Accept-Language header'dan alınır, varsayılan: tr)</param>
     /// <returns>Hazır sesler listesi</returns>
     [HttpGet("presets")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(List<PresetVoiceDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> GetPresetVoices(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetPresetVoices(
+        [FromHeader(Name = "Accept-Language")] string? language,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var voices = await _elevenLabsService.GetPresetVoicesAsync(cancellationToken);
+            // Normalize language code (tr-TR -> tr, en-US -> en)
+            var languageCode = language?.Split(',').FirstOrDefault()?.Trim().Split('-').FirstOrDefault() ?? "tr";
+            languageCode = languageCode.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "en" : "tr";
             
-            _logger.LogInformation("Retrieved {Count} preset voices for user", voices.Count);
+            var voices = await _elevenLabsService.GetPresetVoicesAsync(languageCode, cancellationToken);
             
-            return Ok(voices);
+            _logger.LogInformation("Retrieved {Count} preset voices for language {Language}", voices.Count, languageCode);
+            
+            return Success(voices);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving preset voices");
-            return StatusCode(500, new { error = "Hazır sesler alınırken bir hata oluştu" });
+            return Error("FETCH_FAILED", "Hazır sesler alınırken bir hata oluştu", ex.Message);
         }
     }
 
@@ -58,19 +65,26 @@ public class VoicesController : ControllerBase
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetVoicePreview(string voiceId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetVoicePreview(
+        string voiceId,
+        [FromHeader(Name = "Accept-Language")] string? language,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var voices = await _elevenLabsService.GetPresetVoicesAsync(cancellationToken);
+            // Normalize language code
+            var languageCode = language?.Split(',').FirstOrDefault()?.Trim().Split('-').FirstOrDefault() ?? "tr";
+            languageCode = languageCode.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "en" : "tr";
+            
+            var voices = await _elevenLabsService.GetPresetVoicesAsync(languageCode, cancellationToken);
             var voice = voices.FirstOrDefault(v => v.VoiceId == voiceId);
 
             if (voice == null)
             {
-                return NotFound(new { error = "Ses bulunamadı" });
+                return NotFoundError("Ses bulunamadı");
             }
 
-            return Ok(new 
+            return Success(new 
             { 
                 voiceId = voice.VoiceId,
                 name = voice.Name,
@@ -80,7 +94,7 @@ public class VoicesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving voice preview for {VoiceId}", voiceId);
-            return StatusCode(500, new { error = "Ses önizlemesi alınırken bir hata oluştu" });
+            return Error("FETCH_FAILED", "Ses önizlemesi alınırken bir hata oluştu", ex.Message);
         }
     }
 }

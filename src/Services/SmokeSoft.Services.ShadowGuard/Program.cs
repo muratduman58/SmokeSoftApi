@@ -11,6 +11,7 @@ using SmokeSoft.Services.ShadowGuard.Data;
 using SmokeSoft.Services.ShadowGuard.Filters;
 using SmokeSoft.Services.ShadowGuard.Services;
 using SmokeSoft.Services.ShadowGuard.WebSockets;
+using SmokeSoft.Services.ShadowGuard.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -148,6 +149,7 @@ builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IDeviceService, DeviceService>();
 builder.Services.AddScoped<IOAuthService, OAuthService>();
 builder.Services.AddScoped<IScreenCustomizationService, ScreenCustomizationService>();
+builder.Services.AddScoped<ILocalizationService, LocalizationService>();
 
 // Register security & ElevenLabs services
 builder.Services.AddScoped<ISystemConfigService, SystemConfigService>();
@@ -261,6 +263,9 @@ app.Use(async (context, next) =>
     }
 });
 
+// Add maintenance mode middleware (before authentication)
+app.UseMaintenanceMode();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -283,6 +288,14 @@ if (app.Environment.IsDevelopment())
     {
         await dbContext.Database.MigrateAsync();
         Log.Information("Database migrations applied successfully");
+        
+        // Seed localization data
+        await SmokeSoft.Services.ShadowGuard.Data.Seeders.LocalizationSeeder.SeedAsync(dbContext);
+        Log.Information("Localization data seeded successfully");
+        
+        // Seed system configuration
+        await SmokeSoft.Services.ShadowGuard.Data.Seeders.SystemConfigSeeder.SeedAsync(dbContext);
+        Log.Information("System configuration seeded successfully");
     }
     catch (Exception ex)
     {

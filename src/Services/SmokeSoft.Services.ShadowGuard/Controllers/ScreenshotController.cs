@@ -66,7 +66,7 @@ public class ScreenshotController : BaseController
     {
         if (file == null || file.Length == 0)
         {
-            return BadRequest(new { error = "No file uploaded" });
+            return ValidationError("Dosya yüklenemedi", "Geçerli bir dosya seçiniz");
         }
 
         // Try to get user ID if authenticated
@@ -95,10 +95,10 @@ public class ScreenshotController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "UPLOAD_FAILED", result.ErrorMessage ?? "Ekran görüntüsü yüklenemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "Ekran görüntüsü başarıyla yüklendi");
     }
 
     /// <summary>
@@ -121,10 +121,10 @@ public class ScreenshotController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "FETCH_FAILED", result.ErrorMessage ?? "Ekran görüntüleri getirilemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -151,10 +151,10 @@ public class ScreenshotController : BaseController
 
         if (!result.IsSuccess)
         {
-            return NotFound(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return NotFoundError(result.ErrorMessage ?? "Ekran görüntüsü bulunamadı");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -176,14 +176,14 @@ public class ScreenshotController : BaseController
         var service = _screenCustomizationService as ScreenCustomizationService;
         if (service == null)
         {
-            return StatusCode(500, new { error = "Service not available" });
+            return Error("SERVICE_ERROR", "Servis kullanılamıyor");
         }
 
         var result = await service.GetScreenshotFileAsync(id, cancellationToken);
 
         if (!result.IsSuccess)
         {
-            return NotFound(new { error = result.ErrorMessage });
+            return NotFoundError(result.ErrorMessage ?? "Dosya bulunamadı");
         }
 
         var (fileStream, contentType, fileName) = result.Data!;
@@ -212,9 +212,9 @@ public class ScreenshotController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "DELETE_FAILED", result.ErrorMessage ?? "Ekran görüntüsü silinemedi");
         }
 
-        return Ok(new { message = "Screenshot deleted successfully" });
+        return Success(new { }, "Ekran görüntüsü başarıyla silindi");
     }
 }

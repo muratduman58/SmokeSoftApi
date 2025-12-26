@@ -25,5 +25,5 @@ public interface IElevenLabsVoiceService
     /// <summary>
     /// Get preset voices from ElevenLabs library
     /// </summary>
-    Task<List<SmokeSoft.Shared.DTOs.ShadowGuard.PresetVoiceDto>> GetPresetVoicesAsync(CancellationToken cancellationToken = default);
+    Task<List<SmokeSoft.Shared.DTOs.ShadowGuard.PresetVoiceDto>> GetPresetVoicesAsync(string languageCode = "tr", CancellationToken cancellationToken = default);
 }

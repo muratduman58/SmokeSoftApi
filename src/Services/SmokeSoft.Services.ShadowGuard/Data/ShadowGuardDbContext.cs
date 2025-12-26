@@ -28,6 +28,7 @@ public class ShadowGuardDbContext : DbContext
     public DbSet<VoiceSlot> VoiceSlots { get; set; }
     public DbSet<ConversationSession> ConversationSessions { get; set; }
     public DbSet<CreditUsageLog> CreditUsageLogs { get; set; }
+    public DbSet<LocalizationString> LocalizationStrings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -205,6 +206,19 @@ public class ShadowGuardDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // LocalizationString configuration
+        modelBuilder.Entity<LocalizationString>(entity =>
+        {
+            entity.ToTable("localization_strings");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.Key, e.LanguageCode }).IsUnique();
+            entity.HasIndex(e => e.Category);
+            entity.Property(e => e.Key).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.LanguageCode).IsRequired().HasMaxLength(5);
+            entity.Property(e => e.Value).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(100);
         });
 
         // Configure BaseEntity properties for all entities

@@ -9,16 +9,19 @@ public class ElevenLabsVoiceService : IElevenLabsVoiceService
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
     private readonly ILogger<ElevenLabsVoiceService> _logger;
+    private readonly ILocalizationService _localization;
     private const string BaseUrl = "https://api.elevenlabs.io/v1";
 
     public ElevenLabsVoiceService(
         HttpClient httpClient,
         IConfiguration config,
-        ILogger<ElevenLabsVoiceService> logger)
+        ILogger<ElevenLabsVoiceService> logger,
+        ILocalizationService localization)
     {
         _httpClient = httpClient;
         _config = config;
         _logger = logger;
+        _localization = localization;
     }
 
     public async Task<string> CloneVoiceAsync(
@@ -176,6 +179,7 @@ public class ElevenLabsVoiceService : IElevenLabsVoiceService
     }
 
     public async Task<List<SmokeSoft.Shared.DTOs.ShadowGuard.PresetVoiceDto>> GetPresetVoicesAsync(
+        string languageCode = "tr",
         CancellationToken cancellationToken = default)
     {
         try
@@ -200,21 +204,41 @@ public class ElevenLabsVoiceService : IElevenLabsVoiceService
                 return new List<SmokeSoft.Shared.DTOs.ShadowGuard.PresetVoiceDto>();
             }
 
-            var presetVoices = result.Voices
-                .Where(v => v.Category == "premade") // Sadece hazır sesler
-                .Select(v => new SmokeSoft.Shared.DTOs.ShadowGuard.PresetVoiceDto
+            var presetVoices = new List<SmokeSoft.Shared.DTOs.ShadowGuard.PresetVoiceDto>();
+            
+            foreach (var voice in result.Voices.Where(v => v.Category == "premade"))
+            {
+                var gender = await _localization.GetAsync(
+                    $"gender.{voice.Labels?.Gender?.ToLower() ?? "unknown"}", 
+                    languageCode);
+                    
+                var accent = await _localization.GetAsync(
+                    $"accent.{voice.Labels?.Accent?.ToLower() ?? "unknown"}", 
+                    languageCode);
+                    
+                var age = await _localization.GetAsync(
+                    $"age.{voice.Labels?.Age?.ToLower()?.Replace(" ", "_") ?? "unknown"}", 
+                    languageCode);
+                    
+                var useCase = string.IsNullOrEmpty(voice.Labels?.UseCase) 
+                    ? "" 
+                    : await _localization.GetAsync(
+                        $"usecase.{voice.Labels.UseCase.ToLower()}", 
+                        languageCode);
+
+                presetVoices.Add(new SmokeSoft.Shared.DTOs.ShadowGuard.PresetVoiceDto
                 {
-                    VoiceId = v.VoiceId,
-                    Name = v.Name,
-                    Gender = v.Labels?.Gender ?? "unknown",
-                    Accent = v.Labels?.Accent ?? "unknown",
-                    Description = v.Labels?.Description ?? "",
-                    Age = v.Labels?.Age ?? "unknown",
-                    UseCase = v.Labels?.UseCase ?? "",
-                    PreviewUrl = v.PreviewUrl,
-                    AvailableForTiers = v.AvailableForTiers ?? new List<string>()
-                })
-                .ToList();
+                    VoiceId = voice.VoiceId,
+                    Name = voice.Name,
+                    Gender = gender,
+                    Accent = accent,
+                    Description = voice.Labels?.Description ?? "",
+                    Age = age,
+                    UseCase = useCase,
+                    PreviewUrl = voice.PreviewUrl,
+                    AvailableForTiers = voice.AvailableForTiers ?? new List<string>()
+                });
+            }
 
             _logger.LogInformation("Retrieved {Count} preset voices from ElevenLabs", presetVoices.Count);
 
@@ -226,6 +250,7 @@ public class ElevenLabsVoiceService : IElevenLabsVoiceService
             throw;
         }
     }
+
 
     private class VoiceCloneResponse
     {

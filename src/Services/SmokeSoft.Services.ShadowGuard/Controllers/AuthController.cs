@@ -8,7 +8,7 @@ namespace SmokeSoft.Services.ShadowGuard.Controllers;
 /// <summary>
 /// Kimlik doğrulama ve kullanıcı yönetimi endpoint'leri
 /// </summary>
-[Route("api/auth")]
+[Route("api/shadowguard/auth")]
 [ApiController]
 public class AuthController : BaseController
 {
@@ -46,10 +46,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "REGISTER_FAILED", result.ErrorMessage ?? "Kayıt başarısız");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "Kullanıcı başarıyla kaydedildi");
     }
 
     /// <summary>
@@ -72,10 +72,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "LOGIN_FAILED", result.ErrorMessage ?? "Giriş başarısız");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "Giriş başarılı");
     }
 
     /// <summary>
@@ -98,10 +98,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "OAUTH_LOGIN_FAILED", result.ErrorMessage ?? "OAuth girişi başarısız");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "OAuth girişi başarılı");
     }
 
     /// <summary>
@@ -124,10 +124,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "REFRESH_FAILED", result.ErrorMessage ?? "Token yenileme başarısız");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "Token başarıyla yenilendi");
     }
 
     /// <summary>
@@ -149,10 +149,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "LOGOUT_FAILED", result.ErrorMessage ?? "Çıkış başarısız");
         }
 
-        return Ok(new { message = "Logged out successfully" });
+        return Success(new { }, "Çıkış başarılı");
     }
 
     /// <summary>
@@ -176,10 +176,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return NotFound(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return NotFoundError(result.ErrorMessage ?? "Kullanıcı bulunamadı");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -204,10 +204,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "UPDATE_FAILED", result.ErrorMessage ?? "Profil güncellenemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "Profil başarıyla güncellendi");
     }
 
     /// <summary>
@@ -232,10 +232,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "PASSWORD_CHANGE_FAILED", result.ErrorMessage ?? "Şifre değiştirilemedi");
         }
 
-        return Ok(new { message = "Password changed successfully" });
+        return Success(new { }, "Şifre başarıyla değiştirildi");
     }
 
     /// <summary>
@@ -257,10 +257,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "FETCH_FAILED", result.ErrorMessage ?? "OAuth sağlayıcıları getirilemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -285,10 +285,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "UNLINK_FAILED", result.ErrorMessage ?? "Bağlantı kaldırılamadı");
         }
 
-        return Ok(new { message = $"{provider} unlinked successfully" });
+        return Success(new { }, $"{provider} bağlantısı başarıyla kaldırıldı");
     }
 
     /// <summary>
@@ -313,10 +313,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "DEVICE_REGISTER_FAILED", result.ErrorMessage ?? "Cihaz kaydedilemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "Cihaz başarıyla kaydedildi");
     }
 
     /// <summary>
@@ -338,10 +338,10 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "FETCH_FAILED", result.ErrorMessage ?? "Cihazlar getirilemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -367,9 +367,9 @@ public class AuthController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "DEACTIVATE_FAILED", result.ErrorMessage ?? "Cihaz devre dışı bırakılamadı");
         }
 
-        return Ok(new { message = "Device deactivated successfully" });
+        return Success(new { }, "Cihaz başarıyla devre dışı bırakıldı");
     }
 }

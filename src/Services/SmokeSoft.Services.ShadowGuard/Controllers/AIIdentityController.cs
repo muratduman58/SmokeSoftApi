@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmokeSoft.Services.ShadowGuard.Services;
 using SmokeSoft.Shared.Common;
 using SmokeSoft.Shared.DTOs.ShadowGuard;
+using SmokeSoft.Shared.Models;
 
 namespace SmokeSoft.Services.ShadowGuard.Controllers;
 
@@ -42,10 +43,10 @@ public class AIIdentityController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "FETCH_FAILED", result.ErrorMessage ?? "AI kimlikleri getirilemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -70,10 +71,10 @@ public class AIIdentityController : BaseController
 
         if (!result.IsSuccess)
         {
-            return NotFound(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return NotFoundError(result.ErrorMessage ?? "AI kimliği bulunamadı");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data);
     }
 
     /// <summary>
@@ -102,10 +103,14 @@ public class AIIdentityController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "CREATE_FAILED", result.ErrorMessage ?? "AI kimliği oluşturulamadı");
         }
 
-        return CreatedAtAction(nameof(GetAIIdentityById), new { id = result.Data!.Id }, result.Data);
+        return CreatedAtAction(
+            nameof(GetAIIdentityById), 
+            new { id = result.Data!.Id }, 
+            ApiResponse<AIIdentityDto>.SuccessResult(result.Data, "AI kimliği başarıyla oluşturuldu")
+        );
     }
 
     /// <summary>
@@ -134,10 +139,10 @@ public class AIIdentityController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "UPDATE_FAILED", result.ErrorMessage ?? "AI kimliği güncellenemedi");
         }
 
-        return Ok(result.Data);
+        return Success(result.Data, "AI kimliği başarıyla güncellendi");
     }
 
     /// <summary>
@@ -165,9 +170,9 @@ public class AIIdentityController : BaseController
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.ErrorMessage, code = result.ErrorCode });
+            return Error(result.ErrorCode ?? "DELETE_FAILED", result.ErrorMessage ?? "AI kimliği silinemedi");
         }
 
-        return NoContent();
+        return Success(new { }, "AI kimliği başarıyla silindi");
     }
 }
